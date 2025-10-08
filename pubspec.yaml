@@ -1,0 +1,51 @@
+name: doctack
+description: "A new Flutter project."
+
+# Prevent accidental publishing to pub.dev
+publish_to: "none"
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+  intl: ^0.18.1
+
+  # iOS-style icons
+  cupertino_icons: ^1.0.8
+  table_calendar: ^3.0.9
+  fl_chart: ^0.63.0
+  
+  # Firebase and related dependencies
+  firebase_core: ^4.1.1
+  firebase_auth: ^6.1.0
+  cloud_firestore: ^6.0.2
+  firebase_storage: ^13.0.2
+  google_sign_in: ^6.1.4
+
+  # HTTP & utilities
+  http: ^1.1.0
+  uuid: ^4.1.0
+  image_picker: ^1.1.2
+  file_picker: ^8.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # Recommended lint rules
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+
+  # Assets & Fonts (optional for later)
+  # assets:
+  #   - assets/images/
+  # fonts:
+  #   - family: YourFont
+  #     fonts:
+  #       - asset: assets/fonts/YourFont-Regular.ttf
