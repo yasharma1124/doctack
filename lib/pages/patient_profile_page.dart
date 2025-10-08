@@ -285,6 +285,7 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
   }
 
   Widget _buildVisitHistorySection() {
+  try {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('visits')
@@ -301,13 +302,12 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
               style: TextStyle(color: Colors.redAccent));
         }
 
-        if (snapshot.connectionState ==
-            ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
-              child: CircularProgressIndicator(
-                  color: Colors.purpleAccent));
+              child: CircularProgressIndicator(color: Colors.purpleAccent));
         }
 
+        // ✅ Defensive check for null/empty
         final docs = snapshot.data?.docs ?? [];
         print("🩺 Visit snapshot count: ${docs.length}");
 
@@ -316,9 +316,9 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
               style: TextStyle(color: Colors.white54));
         }
 
+        // ✅ Added try block to isolate rendering issues
         return Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text("Visit History",
                 style: TextStyle(
@@ -327,191 +327,167 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                     fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             ...docs.map((d) {
-              final data =
-                  d.data() as Map<String, dynamic>;
-              final visitDate =
-                  (data['visitDate'] as Timestamp?)
-                      ?.toDate();
-              final visitId = d.id;
+              try {
+                final data = d.data() as Map<String, dynamic>? ?? {};
+                final visitDate = (data['visitDate'] as Timestamp?)?.toDate();
+                final visitId = d.id;
 
-              print(
-                  "🩶 Visit loaded: $visitId — ${data['notes']}");
+                print("🩶 Visit loaded: $visitId — ${data['notes']}");
 
-              return Container(
-                margin:
-                    const EdgeInsets.symmetric(vertical: 6),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF101C33),
-                  borderRadius:
-                      BorderRadius.circular(10),
-                ),
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      visitDate != null
-                          ? DateFormat('dd MMM yyyy')
-                              .format(visitDate)
-                          : 'Unknown Date',
-                      style: const TextStyle(
-                          color: Colors.purpleAccent,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      data['notes'] ??
-                          data['findings'] ??
-                          'No notes available',
-                      style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 13),
-                    ),
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment:
-                          Alignment.centerRight,
-                      child: TextButton.icon(
-                        onPressed: () =>
-                            _addPrescription(context, visitId),
-                        icon: const Icon(
-                            Icons.medical_services_outlined,
+                return Container(
+                  margin: const EdgeInsets.symmetric(vertical: 6),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF101C33),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        visitDate != null
+                            ? DateFormat('dd MMM yyyy').format(visitDate)
+                            : 'Unknown Date',
+                        style: const TextStyle(
                             color: Colors.purpleAccent,
-                            size: 18),
-                        label: const Text(
-                          "Add Prescription",
-                          style: TextStyle(
-                              color: Colors.purpleAccent),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        data['notes'] ??
+                            data['findings'] ??
+                            'No notes available',
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 13),
+                      ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: () => _addPrescription(context, visitId),
+                          icon: const Icon(Icons.medical_services_outlined,
+                              color: Colors.purpleAccent, size: 18),
+                          label: const Text(
+                            "Add Prescription",
+                            style: TextStyle(color: Colors.purpleAccent),
+                          ),
                         ),
                       ),
-                    ),
-                    StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('prescriptions')
-                          .where('visitId',
-                              isEqualTo: visitId)
-                          .orderBy('createdAt',
-                              descending: true)
-                          .snapshots()
-                          .handleError((e) {
-                        print(
-                            '❌ Prescription stream error: $e');
-                      }),
-                      builder: (context, presSnapshot) {
-                        if (presSnapshot.hasError) {
+                      StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('prescriptions')
+                            .where('visitId', isEqualTo: visitId)
+                            .orderBy('createdAt', descending: true)
+                            .snapshots()
+                            .handleError((e) {
+                          print('❌ Prescription stream error: $e');
+                        }),
+                        builder: (context, presSnapshot) {
+                          if (presSnapshot.hasError) {
+                            print("❌ Prescription error: ${presSnapshot.error}");
+                            return const Text("Error loading prescriptions",
+                                style: TextStyle(color: Colors.redAccent));
+                          }
+
+                          if (presSnapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const SizedBox();
+                          }
+
+                          final presDocs = presSnapshot.data?.docs ?? [];
                           print(
-                              "❌ Prescription error: ${presSnapshot.error}");
-                          return const Text(
-                              "Error loading prescriptions",
-                              style: TextStyle(
-                                  color: Colors.redAccent));
-                        }
+                              "💊 Prescriptions found for visit $visitId: ${presDocs.length}");
 
-                        if (!presSnapshot.hasData)
-                          return const SizedBox();
+                          if (presDocs.isEmpty) {
+                            return const Text(
+                                "No prescriptions added yet.",
+                                style: TextStyle(
+                                    color: Colors.white54, fontSize: 13));
+                          }
 
-                        final presDocs =
-                            presSnapshot.data!.docs;
-                        print(
-                            "💊 Prescriptions found for visit $visitId: ${presDocs.length}");
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: presDocs.map((p) {
+                              try {
+                                final presData =
+                                    p.data() as Map<String, dynamic>? ?? {};
+                                final meds = (presData['medicines'] ??
+                                        []) as List<dynamic>;
 
-                        if (presDocs.isEmpty) {
-                          return const Text(
-                              "No prescriptions added yet.",
-                              style: TextStyle(
-                                  color: Colors.white54,
-                                  fontSize: 13));
-                        }
-
-                        return Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                          children: presDocs.map((p) {
-                            final presData =
-                                p.data() as Map<String, dynamic>;
-                            final meds =
-                                (presData['medicines'] ??
-                                        [])
-                                    as List<dynamic>;
-
-                            return Container(
-                              margin:
-                                  const EdgeInsets.symmetric(
-                                      vertical: 6),
-                              padding:
-                                  const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color:
-                                    const Color(0xFF14223C),
-                                borderRadius:
-                                    BorderRadius.circular(8),
-                              ),
-                              child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                      "Prescription",
-                                      style: TextStyle(
-                                          color: Colors
-                                              .purpleAccent,
-                                          fontSize: 14,
-                                          fontWeight:
-                                              FontWeight
-                                                  .w500)),
-                                  const SizedBox(height: 6),
-                                  ...meds.map((m) {
-                                    final mm =
-                                        m as Map<
-                                            String,
-                                            dynamic>? ??
-                                            {};
-                                    return Padding(
-                                      padding: const EdgeInsets
-                                          .symmetric(
+                                return Container(
+                                  margin:
+                                      const EdgeInsets.symmetric(vertical: 6),
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF14223C),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text("Prescription",
+                                          style: TextStyle(
+                                              color: Colors.purpleAccent,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500)),
+                                      const SizedBox(height: 6),
+                                      ...meds.map((m) {
+                                        final mm =
+                                            m as Map<String, dynamic>? ?? {};
+                                        return Padding(
+                                          padding: const EdgeInsets.symmetric(
                                               vertical: 2),
-                                      child: Text(
-                                        "• ${mm['name'] ?? ''} - ${mm['dosage'] ?? ''} (${mm['duration'] ?? ''})",
-                                        style: const TextStyle(
-                                            color:
-                                                Colors.white70,
-                                            fontSize: 13),
-                                      ),
-                                    );
-                                  }),
-                                  if ((presData['notes'] ?? '')
-                                      .toString()
-                                      .isNotEmpty)
-                                    Padding(
-                                      padding:
-                                          const EdgeInsets.only(
-                                              top: 4),
-                                      child: Text(
-                                        "Notes: ${presData['notes']}",
-                                        style: const TextStyle(
-                                            color:
-                                                Colors.white60,
-                                            fontSize: 12),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              );
+                                          child: Text(
+                                            "• ${mm['name'] ?? ''} - ${mm['dosage'] ?? ''} (${mm['duration'] ?? ''})",
+                                            style: const TextStyle(
+                                                color: Colors.white70,
+                                                fontSize: 13),
+                                          ),
+                                        );
+                                      }),
+                                      if ((presData['notes'] ?? '')
+                                          .toString()
+                                          .isNotEmpty)
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(top: 4),
+                                          child: Text(
+                                            "Notes: ${presData['notes']}",
+                                            style: const TextStyle(
+                                                color: Colors.white60,
+                                                fontSize: 12),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                );
+                              } catch (e) {
+                                print("⚠️ Prescription map error: $e");
+                                return const SizedBox();
+                              }
+                            }).toList(),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              } catch (e) {
+                print("⚠️ Visit render error: $e");
+                return const SizedBox();
+              }
             }).toList(),
           ],
         );
       },
     );
+  } catch (e) {
+    print("❌ Visit section error: $e");
+    return const SizedBox();
   }
+}
 
   Future<void> _addPrescription(
       BuildContext context, String visitId) async {
